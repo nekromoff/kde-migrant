@@ -4,7 +4,7 @@ KDE Migrant allows you to migrate your existing KDE configuration to a new compu
 
 A single file browser and command-line script that allows you to backup your full or partial KDE configuration including apps, dotfiles and any customizations. It works for KDE Plasma widgets as well.
 
-It create a ZIP file that you can transfer to a different computer to unzip it.
+It creates a ZIP file that you can transfer to a different computer to unzip it.
 
 ## 1. Backup configuration in browser
 1. Select user to backup
