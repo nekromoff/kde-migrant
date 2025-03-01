@@ -59,8 +59,13 @@ And extract it there.
 ### CLI: Usage and help
 ![help](https://github.com/user-attachments/assets/324be6f1-e4fb-4d4b-ab9b-178a51948ac4)
 
+## FAQ
+> Is it possible to add different folders to back up (e.g. not located in user home directory)?
 
+Yes, edit `migrant.php` and edit these constants: `FOLDERS_SCAN` and `FILES_SCAN`. Add paths to scan. Note that user has to have read access to them in order to back them up.
 
+> How can I change matching pattern for one-click group such as `KDE` checkbox on top?
 
+Edit `KDE_MATCH` constant and add your pattern separated by `|` pipe character. E.g. add `|user` to include all folders+files containing `user` in their name.
 
 ## Please ⭐ star 🌟 this repo, if you like it and use it.
