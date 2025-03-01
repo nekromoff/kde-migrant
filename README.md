@@ -19,6 +19,8 @@ or run `scan` as a different user:
 2. Select configuration folders and files to backup (or select whole categories such as KDE, Plasma, Flatpaks, Snaps)
 3. Confirm to create backup configuration
 
+Note: Files or folders larger than 100 KB will have filesize information on red background shown next to them.
+
 ## 3. CLI: Run backup process
 
 Dry run to simulate backup based on existing configuration:
@@ -42,5 +44,22 @@ And extract it there.
 **Please note that KDE Migrant 🧳 creates a ZIP file with full paths (e.g. /home/user/*). When cloning single user's config files for multiple users, extract and change paths as needed.**
 
 ## Screenshots
+### CLI: Running scan to gather home directory structure (for correct access permissions):
+![0](https://github.com/user-attachments/assets/e48a9221-897d-4375-a280-d1f5ccdc73ec)
+
+### Browser: Select folders and files to back up / migrate:
+![1](https://github.com/user-attachments/assets/8de4a473-3fde-469e-b3b0-c273f207a876)
+
+![2](https://github.com/user-attachments/assets/190b6b3e-7f3b-4db3-b281-282e026f7768)
+
+### Browser: Configuration created
+![3](https://github.com/user-attachments/assets/7fe2035b-b234-4d48-a24c-8d075ceab8df)
+
+### CLI: Usage and help
+![help](https://github.com/user-attachments/assets/324be6f1-e4fb-4d4b-ab9b-178a51948ac4)
+
+
+
+
 
 ## Please ⭐ star 🌟 this repo, if you like it and use it.
