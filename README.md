@@ -16,7 +16,8 @@ or run `scan` as a different user:
 ```sudo -u [user] php migrant.php scan```
 
 ## 2. Browser: Configure which settings to back up
-2. Select configuration folders and files to backup (or select whole categories such as KDE, Plasma, Flatpaks, Snaps)
+1. Open `migrant.php` in your browser (e.g.: http://localhost/kde-migrant/migrant.php)
+2. Select configuration folders and files to back up (or select whole categories such as KDE, Plasma, Flatpaks, Snaps)
 3. Confirm to create backup configuration
 
 Note: Files or folders larger than 100 KB will have filesize information on red background shown next to them.
