@@ -6,6 +6,11 @@ A single file browser and command-line script that allows you to backup your ful
 
 It creates a ZIP file that you can transfer to a different computer to unzip it.
 
+## Installation
+
+1. Clone via git or download a ZIP file.
+2. Unzip to a root directory on your Apache/NGINX server
+
 ## 1. CLI: Gather user home directory structure
 Run from command line:
 
