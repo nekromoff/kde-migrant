@@ -141,6 +141,18 @@ if ($source == 'cli') {
             $zip->close();
             echo "== BACKUP FINISHED ==\n";
             echo "\e[1;37mYou can now take the migrant.zip file and unzip it on target machine.\e[0m\n";
+            echo <<< EOT
+        _
+   ____/ \____
+  / \e[1;37mCONGRATS!\e[0m \
+  |  YOU ARE  |
+  |   NOW A   |
+  | \e[0;30;103m   KDE   \e[0m |
+  \ \e[0;30;103m MIGRANT \e[0m /
+   ====   ====
+       \_/
+EOT;
+            echo "\n";
         } else {
             echo "\e[0;30;103mError creating migrant.zip file.\e[0m Check folder permissions and enable write access.\n";
         }
