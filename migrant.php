@@ -83,12 +83,14 @@ if ($source == 'cli') {
             $items = array_merge($items, scanFolders($folder));
             $percentage = round(($key + 1) / $total * 100);
             echo "\e[1;37m" . str_pad($percentage, 3, ' ', STR_PAD_LEFT) . "%\e[0m\r";
+            flush();
         }
         $total = count(FILES_SCAN);
         foreach (FILES_SCAN as $key => $folder) {
             $items = array_merge($items, scanFiles($folder));
             $percentage = round(($key + 1) / $total * 100);
             echo "\e[1;37m" . str_pad($percentage, 3, ' ', STR_PAD_LEFT) . "%\e[0m\r";
+            flush();
         }
         echo "\e[1;37m100%\e[0m\n";
         $config = ['home' => $_SERVER['HOME'], 'items' => $items];
@@ -110,8 +112,10 @@ if ($source == 'cli') {
         echo "To run as different user: sudo -u [user] php migrant.php\n";
     } elseif (!file_exists(PATH . 'migrant2.config') and isset($argv[1]) and $argv[1] == 'backup') {
         echo "Configuration not found: \e[1;37mOpen migrant.php in your browser now to configure files and folders to migrate.\e[0m\n";
-    } elseif (file_exists(PATH . 'migrant2.config') and isset($argv[1]) and $argv[1] == 'backup') {
+    } elseif (file_exists(PATH . 'migrant2.config') and file_exists(PATH . 'migrant1.config') and isset($argv[1]) and $argv[1] == 'backup') {
         echo "== STARTING BACKUP ==\n";
+        $config = unserialize(file_get_contents(PATH . 'migrant1.config'));
+        $home_directory = $config['home'];
         $config = unserialize(file_get_contents(PATH . 'migrant2.config'));
         $zip = new ZipArchive();
         $result = $zip->open(PATH . 'migrant.zip', ZipArchive::CREATE | ZipArchive::OVERWRITE);
@@ -123,18 +127,21 @@ if ($source == 'cli') {
                 foreach ($config as $key => $item) {
                     $percentage = round(($key + 1) / $total * 100);
                     echo "\e[1;37m" . str_pad($percentage, 3, ' ', STR_PAD_LEFT) . "%\e[0m " . $item . "\n";
+                    flush();
                     if (is_dir($item)) {
                         $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($item), RecursiveIteratorIterator::LEAVES_ONLY);
                         foreach ($files as $name => $file) {
                             if (!$file->isDir()) {
                                 $file_path = $file->getRealPath();
                                 if ($file_path) {
-                                    $zip->addFile($file_path);
+                                    $relative_path = str_ireplace($home_directory . '/', '', $file_path);
+                                    $zip->addFile($file_path, $relative_path);
                                 }
                             }
                         }
                     } else {
-                        $zip->addFile($item);
+                        $relative_path = str_ireplace($home_directory . '/', '', $item);
+                        $zip->addFile($item, $relative_path);
                     }
                 }
             }
