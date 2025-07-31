@@ -47,8 +47,6 @@ or run `backup` as a different user:
 
 And extract it there.
 
-**Please note that KDE Migrant 🧳 creates a ZIP file with full paths (e.g. /home/user/*). When cloning single user's config files for multiple users, extract and change paths as needed.**
-
 ## Screenshots
 ### CLI: Running scan to gather home directory structure (for correct access permissions):
 ![0](https://github.com/user-attachments/assets/e48a9221-897d-4375-a280-d1f5ccdc73ec)
