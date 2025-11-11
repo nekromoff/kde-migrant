@@ -7,9 +7,11 @@ A single file browser and command-line script that allows you to backup your ful
 It creates a ZIP file that you can transfer to a different computer to unzip it.
 
 ## Installation
-
 1. Clone via git or download a ZIP file.
-2. Unzip to a root directory on your Apache/NGINX server
+2. Clone / unzip to a directory
+    - You need a server (Apache, NGINX or similar) running. If you have an existing server, unzip (or clone) to a root directory of your server (e.g. `/var/www/`).
+    - If you don't have a server running, launch a built-in server using PHP directly like this:  
+    `php -S 127.0.0.1:8000 -t /path/to/kde-migrant`
 
 ## 1. CLI: Gather user home directory structure
 Run from command line:
@@ -21,7 +23,9 @@ or run `scan` as a different user:
 ```sudo -u [user] php migrant.php scan```
 
 ## 2. Browser: Configure which settings to back up
-1. Open `migrant.php` in your browser (e.g.: http://localhost/kde-migrant/migrant.php)
+1. Open `migrant.php` in your browser
+    - when using an existing server: e.g.: `http://localhost/kde-migrant/migrant.php`
+    - when using a PHP built-in server: `http://127.0.0.1:8000/migrant.php`
 2. Select configuration folders and files to back up (or select whole categories such as KDE, Plasma, Flatpaks, Snaps)
 3. Confirm to create backup configuration
 
