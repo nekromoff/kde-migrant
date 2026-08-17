@@ -2,8 +2,8 @@
 set_time_limit(900);
 const PATH = './';
 const WARNING_SIZE = 100000; // bytes
-const FOLDERS_SCAN = ['/.', '/.config/', '/.local/share/', '/.local/share/', '/.var/app/', '/snap/'];
-const FILES_SCAN = ['/.config/', '/.local/share/', '/.local/share/', '/.var/app/', '/snap/'];
+const FOLDERS_SCAN = ['/.', '/.config/', '/.local/share/', '/.var/app/', '/snap/'];
+const FILES_SCAN = ['/.config/', '/.local/share/', '/.var/app/', '/snap/'];
 const KDE_MATCH = 'k|rc|pulse|session|gtk|x|autostart|xbel';
 
 function scanFolders($path)
@@ -15,9 +15,13 @@ function scanFolders($path)
         if (!is_dir($folder) or basename($folder) == '.' or basename($folder) == '..') {
             continue;
         }
-        $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($folder), RecursiveIteratorIterator::LEAVES_ONLY);
+        try {
+            $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($folder, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::LEAVES_ONLY, RecursiveIteratorIterator::CATCH_GET_CHILD);
+        } catch (UnexpectedValueException $e) {
+            continue;
+        }
         foreach ($files as $file) {
-            if ($file->isFile()) {
+            if ($file->isFile() and $file->isReadable()) {
                 $items[$folder] = $items[$folder] ?? 0;
                 $items[$folder] += $file->getSize();
             }
@@ -32,7 +36,7 @@ function scanFiles($path)
     $items = [];
     $files = glob($home . $path . '*');
     foreach ($files as $file) {
-        if (is_dir($file) or basename($file) == '.' or basename($file) == '..') {
+        if (!is_file($file)) { // skips directories and broken symlinks
             continue;
         }
         $items[$file] = filesize($file);
@@ -63,11 +67,35 @@ function displayItems($items, $path = '', $heading = '')
     }
 }
 
+function readConfig($file)
+{
+    $contents = file_get_contents($file);
+    $config = json_decode($contents, true);
+    if ($config === null) { // fallback for configs created by older versions
+        $config = unserialize($contents);
+    }
+    return $config;
+}
+
+function writeConfig($file, $config)
+{
+    file_put_contents($file, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+}
+
+function makeRelative($path, $home)
+{
+    // strip the home prefix only from the start of the path
+    if (strpos($path, $home . '/') === 0) {
+        return substr($path, strlen($home) + 1);
+    }
+    return $path;
+}
+
 function formatSize($size)
 {
     $mod = 1024;
     $units = explode(' ', 'B KB MB GB TB PB');
-    for ($i = 0; $size > $mod; $i++) {
+    for ($i = 0; $size >= $mod; $i++) {
         $size /= $mod;
     }
     return round($size, 2) . ' ' . $units[$i];
@@ -94,7 +122,7 @@ if ($source == 'cli') {
         }
         echo "\e[1;37m100%\e[0m\n";
         $config = ['home' => $_SERVER['HOME'], 'items' => $items];
-        file_put_contents(PATH . 'migrant1.config', serialize($config));
+        writeConfig(PATH . 'migrant1.config', $config);
         echo "== SCAN FINISHED ==\n";
         echo "\e[1;37mOpen migrant.php in your browser now to configure files and folders to migrate.\e[0m\n";
     } elseif (!isset($argv[1]) or (isset($argv[1]) and $argv[1] == 'help')) {
@@ -114,38 +142,49 @@ if ($source == 'cli') {
         echo "Configuration not found: \e[1;37mOpen migrant.php in your browser now to configure files and folders to migrate.\e[0m\n";
     } elseif (file_exists(PATH . 'migrant2.config') and file_exists(PATH . 'migrant1.config') and isset($argv[1]) and $argv[1] == 'backup') {
         echo "== STARTING BACKUP ==\n";
-        $config = unserialize(file_get_contents(PATH . 'migrant1.config'));
+        $config = readConfig(PATH . 'migrant1.config');
         $home_directory = $config['home'];
-        $config = unserialize(file_get_contents(PATH . 'migrant2.config'));
+        $config = readConfig(PATH . 'migrant2.config');
         $zip = new ZipArchive();
         $result = $zip->open(PATH . 'migrant.zip', ZipArchive::CREATE | ZipArchive::OVERWRITE);
         if ($result === true) {
-            $config = unserialize(file_get_contents(PATH . 'migrant2.config'));
+            $skipped = [];
             if (!empty($config)) {
                 $total = count($config);
                 echo "\e[1;37mBacking up " . $total . " items\e[0m:\n";
-                foreach ($config as $key => $item) {
+                foreach (array_values($config) as $key => $item) {
                     $percentage = round(($key + 1) / $total * 100);
                     echo "\e[1;37m" . str_pad($percentage, 3, ' ', STR_PAD_LEFT) . "%\e[0m " . $item . "\n";
                     flush();
                     if (is_dir($item)) {
-                        $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($item), RecursiveIteratorIterator::LEAVES_ONLY);
+                        try {
+                            $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($item, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::LEAVES_ONLY, RecursiveIteratorIterator::CATCH_GET_CHILD);
+                        } catch (UnexpectedValueException $e) {
+                            $skipped[] = $item;
+                            continue;
+                        }
                         foreach ($files as $name => $file) {
                             if (!$file->isDir()) {
                                 $file_path = $file->getRealPath();
                                 if ($file_path) {
-                                    $relative_path = str_ireplace($home_directory . '/', '', $file_path);
-                                    $zip->addFile($file_path, $relative_path);
+                                    if (!$zip->addFile($file_path, makeRelative($file_path, $home_directory))) {
+                                        $skipped[] = $file_path;
+                                    }
                                 }
                             }
                         }
-                    } else {
-                        $relative_path = str_ireplace($home_directory . '/', '', $item);
-                        $zip->addFile($item, $relative_path);
+                    } elseif (!is_file($item) or !$zip->addFile($item, makeRelative($item, $home_directory))) {
+                        $skipped[] = $item;
                     }
                 }
             }
             $zip->close();
+            if (!empty($skipped)) {
+                echo "\e[0;30;103mWarning: " . count($skipped) . " item(s) could not be backed up:\e[0m\n";
+                foreach ($skipped as $item) {
+                    echo "  " . $item . "\n";
+                }
+            }
             echo "== BACKUP FINISHED ==\n";
             echo "\e[1;37mYou can now take the migrant.zip file and unzip it on target machine.\e[0m\n";
             echo <<< EOT
@@ -165,14 +204,15 @@ EOT;
         }
     } elseif (file_exists(PATH . 'migrant2.config') and isset($argv[1]) and $argv[1] == 'dryrun') {
         echo "\e[0;30;103m== Dry run only ==\e[0m\n";
-        $config = unserialize(file_get_contents(PATH . 'migrant2.config'));
+        $config = readConfig(PATH . 'migrant2.config');
         if (!empty($config)) {
             $total = count($config);
             $sleeptime = 3 / $total * 1000000;
             echo "\e[1;37mBacking up " . $total . " items\e[0m:\n";
-            foreach ($config as $key => $item) {
+            foreach (array_values($config) as $key => $item) {
                 $percentage = round(($key + 1) / $total * 100);
-                echo "\e[1;37m" . str_pad($percentage, 3, ' ', STR_PAD_LEFT) . "%\e[0m " . $item . "\n";
+                $missing = file_exists($item) ? '' : " \e[0;30;103mmissing, will be skipped\e[0m";
+                echo "\e[1;37m" . str_pad($percentage, 3, ' ', STR_PAD_LEFT) . "%\e[0m " . $item . $missing . "\n";
                 usleep($sleeptime);
             }
         }
@@ -203,23 +243,34 @@ EOT;
     </style>';
     echo "<script>
     document.addEventListener('DOMContentLoaded', (event) => {
+        function itemMatches(el, match) {
+            let parent_ids = match.split('|');
+            for (let i = 0; i < parent_ids.length; i++) {
+                let parent_id = parent_ids[i];
+                if (parent_id.length == 1 && el.id.toLowerCase().indexOf('/' + parent_id) != -1) {
+                    return true;
+                } else if (parent_id.length > 1 && el.id.toLowerCase().indexOf(parent_id) != -1) {
+                    return true;
+                }
+            }
+            return false;
+        }
         document.querySelectorAll('#options input[type=checkbox]').forEach(function(parent_el) {
             parent_el.addEventListener('click', (event)=> {
-                let total=0;
                 document.querySelectorAll('#items input[type=checkbox]').forEach(function(el) {
-                    parent_ids=[parent_el.id];
-                    if (parent_el.id.indexOf('|')) {
-                        parent_ids=parent_el.id.split('|');
-                    }
-                    for (i=0; i<parent_ids.length; i++) {
-                        parent_id=parent_ids[i];
-                        if (parent_id.length==1 && el.id.toLowerCase().indexOf('/'+parent_id)!=-1) {
+                    if (parent_el.id == 'others') {
+                        // everything not covered by any other category
+                        let matched = false;
+                        document.querySelectorAll('#options input[type=checkbox]').forEach(function(other_el) {
+                            if (other_el.id != 'others' && itemMatches(el, other_el.id)) {
+                                matched = true;
+                            }
+                        });
+                        if (!matched) {
                             el.checked = parent_el.checked;
-                            break;
-                        } else if (parent_id.length>1 && el.id.toLowerCase().indexOf(parent_id)!=-1) {
-                            el.checked = parent_el.checked;
-                            break;
                         }
+                    } else if (itemMatches(el, parent_el.id)) {
+                        el.checked = parent_el.checked;
                     }
                 });
                 countSize();
@@ -267,9 +318,10 @@ EOT;
         <input type="checkbox" name="plasma" id="plasma"><label for="plasma"> Plasma</label>
         <input type="checkbox" name="var/app" id="var/app"><label for="var/app"> Flatpaks</label>
         <input type="checkbox" name="snap" id="snap"><label for="snap"> Snaps</label>
+        <input type="checkbox" name="others" id="others"><label for="others"> Others</label>
         </fieldset>';
         echo '<h2>Step 1: Configure backup</h2>';
-        $config = unserialize(file_get_contents(PATH . 'migrant1.config'));
+        $config = readConfig(PATH . 'migrant1.config');
         $home = $config['home'];
         $items = $config['items'];
         echo '<form id="items" method="post" action="migrant.php">';
@@ -285,7 +337,7 @@ EOT;
     } elseif ($_SERVER['REQUEST_METHOD'] == 'POST' and $_POST['step'] == 2) {
         $config = $_POST['items'];
         if (!empty($config)) {
-            file_put_contents(PATH . 'migrant2.config', serialize($config));
+            writeConfig(PATH . 'migrant2.config', $config);
             echo '<div class="info"><p>Backup settings have been saved. You can now run:</p><p><code>php migrant.php backup</code></p><p>in command line to start backup.</p></div>';
         } else {
             echo '<div class="warning"><p>No backup settings have been selected. Use Back button to select some.</p></div>';
