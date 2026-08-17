@@ -9,7 +9,7 @@ It creates a ZIP file that you can transfer to a different computer to unzip it.
 ## Installation
 1. Clone via git or download a ZIP file.
 2. Clone / unzip to a directory
-    - You need a server (Apache, NGINX or similar) running. If you have an existing server, unzip (or clone) to a root directory of your server (e.g. `/var/www/`).
+    - You need PHP installed and a server (Apache, nginx or similar) running. If you have an existing server, unzip (or clone) to a root directory of your server (e.g. `/var/www/`).
     - If you don't have a server running, launch a built-in server using PHP directly like this:  
     `php -S 127.0.0.1:8000 -t /path/to/kde-migrant`
 
